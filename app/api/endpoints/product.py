@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from app.core.database import get_db
@@ -290,9 +290,10 @@ async def search_products(
         query = query.where(Product.category_id == category_id)
 
     if search:
+        # Using GIN -> Generalized Inverted Index
         query = query.where(
-            Product.name.ilike(f"%{search}%") |
-            Product.description.ilike(f"%{search}%")
+            Product.search_vector.op('@@')
+            (func.plainto_tsquery('english', search))
         )
 
     result = await db.execute(query)

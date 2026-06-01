@@ -15,6 +15,10 @@ class Product(Base):
     rating = Column(Float, nullable=True)
     search_vector = Column(TSVECTOR, nullable=True)
 
+    __table_args__ = (
+        Index('ix_product_search_gin', search_vector, postgresql_using='gin'),
+    )
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

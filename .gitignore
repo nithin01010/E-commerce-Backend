@@ -4,6 +4,7 @@ __pycache__/
 venv/
 *.pyc
 
+alembic/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
