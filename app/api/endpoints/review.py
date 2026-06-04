@@ -112,7 +112,7 @@ limiter_product = Limiter(Rate(5, Duration.MINUTE))
     "/",
     response_model=ReviewResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(limiter_product)]
+    dependencies=[Depends(RateLimiter(limiter=limiter_product))]
 )
 async def create_review(
     review_in: ReviewCreate,
