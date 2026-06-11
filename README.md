@@ -79,9 +79,9 @@ These are the specific, real-world engineering problems this project solves:
                              ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                     FastAPI Application                     │
-│  ┌────────────┐  ┌─────────────┐  ┌──────────────────────┐ │
-│  │  Auth/JWT  │  │ Rate Limiter│  │   CORS Middleware     │ │
-│  └────────────┘  └─────────────┘  └──────────────────────┘ │
+│  ┌────────────┐  ┌─────────────┐  ┌──────────────────────┐  │
+│  │  Auth/JWT  │  │ Rate Limiter│  │   CORS Middleware    │  │
+│  └────────────┘  └─────────────┘  └──────────────────────┘  │
 │                                                             │
 │  Routers: auth · customer · seller · admin · products       │
 │           cart · orders · reviews · returns · support       │
@@ -89,8 +89,8 @@ These are the specific, real-world engineering problems this project solves:
        │                │
        ▼                ▼
 ┌────────────┐   ┌──────────────┐   ┌───────────────────────┐
-│ PostgreSQL │   │    Redis      │   │   Celery Worker       │
-│ (asyncpg)  │   │ Cache + Queue │   │ (Email Notifications) │
+│ PostgreSQL │   │    Redis     │   │   Celery Worker       │
+│ (asyncpg)  │   │ Cache + Queue│   │ (Email Notifications) │
 │ PgBouncer  │   │              │   │                       │
 └────────────┘   └──────────────┘   └───────────────────────┘
 ```
