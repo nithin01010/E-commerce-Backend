@@ -23,7 +23,7 @@ from pyrate_limiter import Rate, Duration, Limiter
 
 router = APIRouter()
 
-auth_limiter_register = Limiter(Rate(10, Duration.HOUR))
+auth_limiter_register = Limiter(Rate(100000, Duration.HOUR)) if settings.DEBUG else Limiter(Rate(10, Duration.HOUR))
 
 
 @router.post(
@@ -51,7 +51,7 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
 
     return new_user
 
-auth_limiter = Limiter(Rate(5, Duration.MINUTE))
+auth_limiter = Limiter(Rate(100000, Duration.MINUTE)) if settings.DEBUG else Limiter(Rate(5, Duration.MINUTE))
 
 
 @router.post(
@@ -231,7 +231,7 @@ async def refresh_token(
     return {"message": "Token refreshed successfully"}
 
 
-auth_limiter_forget = Limiter(Rate(3, Duration.HOUR))
+auth_limiter_forget = Limiter(Rate(100000, Duration.HOUR)) if settings.DEBUG else Limiter(Rate(3, Duration.HOUR))
 
 
 @router.post(
@@ -263,7 +263,7 @@ async def forgot_password(
     return {"message": """If the email exists,
     a password reset link has been sent."""}
 
-auth_limiter_reset = Limiter(Rate(3, Duration.HOUR))
+auth_limiter_reset = Limiter(Rate(100000, Duration.HOUR)) if settings.DEBUG else Limiter(Rate(3, Duration.HOUR))
 
 
 @router.post(

@@ -14,6 +14,7 @@ from app.schemas.product import ProductResponse, ProductUpdate
 import redis.asyncio as redis
 from app.core.cache import get_cached, set_cache, invalidate_pattern
 from app.core.cache import serialize_product
+from app.core.config import settings
 
 from fastapi_limiter.depends import RateLimiter
 from pyrate_limiter import Rate, Duration, Limiter
@@ -84,7 +85,7 @@ async def get_product(db, product_id, seller_id):
 
 # ----------------------------------------------------------------------------------
 
-limiter_create_post = Limiter(Rate(5, Duration.MINUTE))
+limiter_create_post = Limiter(Rate(100000, Duration.MINUTE)) if settings.DEBUG else Limiter(Rate(5, Duration.MINUTE))
 
 
 @router.post(
@@ -162,7 +163,7 @@ async def update_product(
     product.category_id = product_in.category_id
 
     await db.commit()
-    await db.refresh(product)
+    await db.refresh(product, ["images"])
 
     # WRITE-THROUGH: cache
     await set_cache(
@@ -203,7 +204,7 @@ async def partially_update_product(
         setattr(product, field, value)
 
     await db.commit()
-    await db.refresh(product)
+    await db.refresh(product, ["images"])
 
     # WRITE-THROUGH: cache
     await set_cache(
@@ -231,6 +232,25 @@ async def delete_product(
 
     product = await get_product(db, product_id, seller.id)
 
+    from sqlalchemy import delete
+    from app.models.cart import Cart
+    from app.models.order import Order
+    from app.models.return_request import Return
+    from app.models.review import Review
+
+    # Find all orders for this product to clean up child relations (returns, reviews)
+    order_ids_stmt = select(Order.id).where(Order.product_id == product_id)
+    order_ids_result = await db.execute(order_ids_stmt)
+    order_ids = order_ids_result.scalars().all()
+
+    if order_ids:
+        await db.execute(delete(Return).where(Return.order_id.in_(order_ids)))
+        await db.execute(delete(Review).where(Review.order_id.in_(order_ids)))
+        await db.execute(delete(Order).where(Order.id.in_(order_ids)))
+
+    # Clean up cart items for this product
+    await db.execute(delete(Cart).where(Cart.product_id == product_id))
+
     await db.delete(product)
     await db.commit()
 
@@ -238,6 +258,7 @@ async def delete_product(
     await redis_client.delete(f"product:{product.id}")
     await invalidate_pattern(redis_client, "products:*")
     return
+
 
 
 @router.post(
@@ -342,7 +363,7 @@ async def get_product_details(
     await set_cache(
         redis_client,
         cache_key,
-        [serialize_product(p) for p in product],
+        serialize_product(product),
         ttl=120
     )
     return product

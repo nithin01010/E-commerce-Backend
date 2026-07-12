@@ -1,0 +1,2 @@
+# Locust load testing dependencies for E-Commerce Backend
+locust>=2.28.0

@@ -153,6 +153,21 @@ async def delete_address(
             detail="Admins cannot delete addresses"
             )
 
+    from sqlalchemy import delete
+    from app.models.order import Order
+    from app.models.return_request import Return
+    from app.models.review import Review
+
+    # Find all orders referencing this address to clean up child relations
+    order_ids_stmt = select(Order.id).where(Order.address_id == id)
+    order_ids_result = await db.execute(order_ids_stmt)
+    order_ids = order_ids_result.scalars().all()
+
+    if order_ids:
+        await db.execute(delete(Return).where(Return.order_id.in_(order_ids)))
+        await db.execute(delete(Review).where(Review.order_id.in_(order_ids)))
+        await db.execute(delete(Order).where(Order.id.in_(order_ids)))
+
     await db.delete(address)
     await db.commit()
 

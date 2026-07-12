@@ -139,7 +139,7 @@ async def checkout(
         check_stock(locked_product, cart_item.quantity)
 
         locked_product.stock -= cart_item.quantity
-        total_amount = locked_product.price * cart_item.quantity
+        total_amount = int(locked_product.price * cart_item.quantity)
 
         new_order = Order(
             quantity=cart_item.quantity,

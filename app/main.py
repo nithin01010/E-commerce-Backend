@@ -17,6 +17,16 @@ app = FastAPI(
     version=settings.VERSION
 )
 
+# Completely disable/pause rate limiting if in DEBUG mode for load testing
+if settings.DEBUG:
+    from pyrate_limiter import Limiter
+    async def dummy_acquire_async(*args, **kwargs):
+        return True
+    def dummy_acquire(*args, **kwargs):
+        return True
+    Limiter.try_acquire_async = dummy_acquire_async
+    Limiter.try_acquire = dummy_acquire
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -111,4 +121,50 @@ async def validation_exception_handler(request, exc):
         status_code=500,
         content={"detail": str(exc.errors())}
     )
+
+
+# Monkeypatch fastapi-limiter to avoid AttributeError on _IncludedRouter in newer FastAPI versions
+try:
+    import fastapi_limiter.depends
+    from fastapi import Request, Response
+    original_limiter_call = fastapi_limiter.depends.RateLimiter.__call__
+
+    async def patched_limiter_call(self, request: Request, response: Response):
+        # Mutate the underlying router.routes list in-place to avoid read-only property error
+        original_routes = list(request.app.router.routes)
+        filtered_routes = [r for r in original_routes if hasattr(r, "path") and hasattr(r, "methods")]
+        request.app.router.routes.clear()
+        request.app.router.routes.extend(filtered_routes)
+        try:
+            return await original_limiter_call(self, request, response)
+        finally:
+            request.app.router.routes.clear()
+            request.app.router.routes.extend(original_routes)
+
+    fastapi_limiter.depends.RateLimiter.__call__ = patched_limiter_call
+except Exception as e:
+    import logging
+    logging.warning(f"Failed to apply fastapi-limiter monkeypatch: {e}")
+
+
+# Monkeypatch bcrypt to prevent ValueError with newer versions in passlib's startup checks
+try:
+    import bcrypt
+    original_hashpw = bcrypt.hashpw
+
+    def patched_hashpw(password, salt):
+        if isinstance(password, bytes) and len(password) > 72:
+            password = password[:72]
+        elif isinstance(password, str) and len(password) > 72:
+            password = password[:72]
+        return original_hashpw(password, salt)
+
+    bcrypt.hashpw = patched_hashpw
+except Exception as e:
+    import logging
+    logging.warning(f"Failed to apply bcrypt monkeypatch: {e}")
+
+
+
+
 

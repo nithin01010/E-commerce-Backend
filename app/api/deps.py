@@ -11,7 +11,7 @@ from app.models.user import User
 # Using HttpOnly Cookies for Auth
 
 redis_pool = redis.ConnectionPool.from_url(
-    settings.REDIS_URL, decode_responses=True
+    settings.REDIS_URL, decode_responses=True, max_connections=1000
     )
 
 oauth2_scheme = OAuth2PasswordBearer(

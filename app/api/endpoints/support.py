@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import List
 
 from app.core.database import get_db
@@ -34,7 +35,9 @@ def check_ticket_access(ticket, current_user: User):
 
 async def get_ticket(db: AsyncSession, ticket_id: int) -> SupportTicket:
     result = await db.execute(
-        select(SupportTicket).where(SupportTicket.id == ticket_id)
+        select(SupportTicket)
+        .where(SupportTicket.id == ticket_id)
+        .options(selectinload(SupportTicket.replies))
     )
     ticket = result.scalars().first()
     check_ticket_exists(ticket)
@@ -63,7 +66,14 @@ async def create_support_ticket(
     )
     db.add(new_ticket)
     await db.commit()
-    await db.refresh(new_ticket)
+
+    # Re-fetch with replies eagerly loaded to avoid async lazy-load error
+    result = await db.execute(
+        select(SupportTicket)
+        .where(SupportTicket.id == new_ticket.id)
+        .options(selectinload(SupportTicket.replies))
+    )
+    new_ticket = result.scalars().first()
     return new_ticket
 
 
@@ -73,12 +83,14 @@ async def list_support_tickets(
     current_user: User = Depends(get_current_user)
 ):
     if current_user.role_id == 3:
-        result = await db.execute(select(SupportTicket))
+        result = await db.execute(
+            select(SupportTicket).options(selectinload(SupportTicket.replies))
+        )
     else:
         result = await db.execute(
-            select(SupportTicket).where(
-                SupportTicket.user_id == current_user.id
-                )
+            select(SupportTicket)
+            .where(SupportTicket.user_id == current_user.id)
+            .options(selectinload(SupportTicket.replies))
         )
     return result.scalars().all()
 
@@ -110,5 +122,11 @@ async def update_support_ticket_status(
         ticket.priority = ticket_update.priority
 
     await db.commit()
-    await db.refresh(ticket)
+    # Re-fetch with replies to avoid lazy-load error on response serialization
+    result = await db.execute(
+        select(SupportTicket)
+        .where(SupportTicket.id == ticket_id)
+        .options(selectinload(SupportTicket.replies))
+    )
+    ticket = result.scalars().first()
     return ticket

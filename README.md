@@ -343,6 +343,44 @@ pytest -v
 
 ---
 
+## Load Testing (Locust)
+
+The repository includes a comprehensive load testing suite using **Locust** to benchmark performance, concurrency limits, and database locks under realistic customer/seller flows.
+
+### Roles Simulated & Traffic Split
+The suite generates traffic according to a realistic e-commerce workload distribution:
+- **PublicUser (60%)**: Anonymous visitors searching products, filtering by categories, and reading reviews (mostly cached read traffic).
+- **CustomerUser (30%)**: Authenticated shoppers adding items to cart, checking out orders (triggering row-level locks), creating support tickets, and writing reviews.
+- **SellerUser (8%)**: Authenticated vendors creating/updating inventory and monitoring orders.
+- **AdminUser (2%)**: Authenticated administrators fetching platform dashboards and auditing return requests.
+
+### Prerequisites
+Activate your virtual environment and install Locust:
+```bash
+pip install locust
+```
+
+### Running the Load Tests
+**1. Start the Locust Web UI**
+Run the load tests pointing to your Docker backend instance (normally mapped to host port `8002`):
+```bash
+locust -f locust/locustfile.py --host=http://localhost:8002
+```
+
+**2. Configure the Swarm**
+- Open **`http://localhost:8089`** in your browser.
+- Set the number of concurrent users (e.g., `100` to `1000`) and the spawn rate (e.g., `10` users/sec).
+- Click **Start swarming** to begin generating load and monitor real-time charts, failure rates, and response latencies.
+
+**3. Headless Mode (CI/CD Benchmarking)**
+To run a load test without the Web UI (e.g., in automated pipelines) and export a report:
+```bash
+locust -f locust/locustfile.py --host=http://localhost:8002 --headless -u 100 -r 10 --run-time 5m --csv=locust_report
+```
+
+---
+
+
 ## Health Check
 
 ```bash

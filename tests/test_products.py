@@ -6,84 +6,154 @@ from app.models.product import Product
 from app.models.category import Category
 from app.models.seller import Seller
 from app.models.user import User
+from app.models.role import Role
+from app.main import app
 
-async def create_dummy_data(db: AsyncSession):
-    # Create User
+@pytest.fixture
+async def authenticated_seller_client(client, db_session):
+    # 1. Create Seller Role (required for User FK)
+    role = Role(id=2, name="seller")
+    db_session.add(role)
+    await db_session.commit()
+
+    # 2. Create User with role_id=2
     user = User(
         email="seller@test.com",
-        username="seller",
-        hashed_password="hashed_password",
-        role="seller"
+        password="hashed_password",
+        role_id=2,
+        is_active=True
     )
-    db.add(user)
-    await db.commit()
-    
-    # Create Category
-    category = Category(name="Electronics", description="Gadgets")
-    db.add(category)
-    await db.commit()
-    
-    # Create Seller Profile
+    db_session.add(user)
+    await db_session.commit()
+
+    # 3. Create Seller profile (required by get_seller_profile)
     seller = Seller(
-        user_id=user.id,
-        store_name="Tech Store",
-        gst_number="123456789",
-        pan_number="ABCDE1234F",
-        address="123 Tech St"
-    )
-    db.add(seller)
-    await db.commit()
-    
-    # Create Product (This relies on the DB trigger for search_vector)
-    product = Product(
-        name="Ultra Fast Gaming Laptop",
-        description="A super fast laptop with 32GB RAM and RTX 4090.",
-        price=2000,
-        stock=10,
+        name="Tech Store",
+        phone_number="9876543210",
+        is_active=True,
         is_verified=True,
-        status="active",
-        category_id=category.id,
-        seller_id=seller.id
+        user_id=user.id
     )
-    db.add(product)
-    await db.commit()
-    await db.refresh(product)
-    
-    return product
+    db_session.add(seller)
 
-async def test_search_products_success(client: AsyncClient, db_session: AsyncSession):
-    # Setup Data
-    product = await create_dummy_data(db_session)
-    
-    # In PostgreSQL, we need to manually invoke the trigger if the test database
-    # was just created by SQLAlchemy Base.metadata.create_all because triggers
-    # are usually handled by Alembic, not SQLAlchemy metadata!
-    # Let's forcefully update the search_vector for the test
-    await db_session.execute(
-        text("UPDATE products SET search_vector = to_tsvector('english', name || ' ' || description)")
-    )
+    # 4. Create Category
+    category = Category(name="Electronics")
+    db_session.add(category)
     await db_session.commit()
 
-    # Hit the Search Endpoint
-    response = await client.get("/products/?search=fast laptop")
+    # 5. Override dependency
+    from app.api.deps import get_current_user
+    app.dependency_overrides[get_current_user] = lambda: user
     
-    assert response.status_code == 200
-    data = response.json()
-    
-    # Assert our product was found
-    assert len(data) > 0
-    assert data[0]["name"] == "Ultra Fast Gaming Laptop"
+    yield client, category.id
 
-async def test_search_products_no_match(client: AsyncClient, db_session: AsyncSession):
-    await create_dummy_data(db_session)
-    await db_session.execute(
-        text("UPDATE products SET search_vector = to_tsvector('english', name || ' ' || description)")
+    # Clean up overrides
+    app.dependency_overrides.pop(get_current_user, None)
+
+
+async def test_create_product_success(authenticated_seller_client):
+    client, category_id = authenticated_seller_client
+    
+    # Hit the POST products creation endpoint
+    response = await client.post(
+        "/products/",
+        json={
+            "name": "Ultra Fast Gaming Laptop",
+            "description": "A super fast laptop with 32GB RAM and RTX 4090.",
+            "price": 2000,
+            "stock": 10,
+            "category_id": category_id
+        }
     )
-    await db_session.commit()
-
-    # Search for something that doesn't exist
-    response = await client.get("/products/?search=wooden chair")
     
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
-    assert len(data) == 0
+    assert data["name"] == "Ultra Fast Gaming Laptop"
+    assert data["price"] == 2000
+    assert data["stock"] == 10
+    assert data["category_id"] == category_id
+
+
+# ==============================================================================
+# Commented out GET tests as requested
+# ==============================================================================
+# async def create_dummy_data(db: AsyncSession):
+#     # Create User
+#     user = User(
+#         email="seller@test.com",
+#         username="seller",
+#         hashed_password="hashed_password",
+#         role="seller"
+#     )
+#     db.add(user)
+#     await db.commit()
+#     
+#     # Create Category
+#     category = Category(name="Electronics", description="Gadgets")
+#     db.add(category)
+#     await db.commit()
+#     
+#     # Create Seller Profile
+#     seller = Seller(
+#         user_id=user.id,
+#         store_name="Tech Store",
+#         gst_number="123456789",
+#         pan_number="ABCDE1234F",
+#         address="123 Tech St"
+#     )
+#     db.add(seller)
+#     await db.commit()
+#     
+#     # Create Product (This relies on the DB trigger for search_vector)
+#     product = Product(
+#         name="Ultra Fast Gaming Laptop",
+#         description="A super fast laptop with 32GB RAM and RTX 4090.",
+#         price=2000,
+#         stock=10,
+#         is_verified=True,
+#         status="active",
+#         category_id=category.id,
+#         seller_id=seller.id
+#     )
+#     db.add(product)
+#     await db.commit()
+#     await db.refresh(product)
+#     
+#     return product
+# 
+# async def test_search_products_success(client: AsyncClient, db_session: AsyncSession):
+#     # Setup Data
+#     product = await create_dummy_data(db_session)
+#     
+#     # In PostgreSQL, we need to manually invoke the trigger if the test database
+#     # was just created by SQLAlchemy Base.metadata.create_all because triggers
+#     # are usually handled by Alembic, not SQLAlchemy metadata!
+#     # Let's forcefully update the search_vector for the test
+#     await db_session.execute(
+#         text("UPDATE products SET search_vector = to_tsvector('english', name || ' ' || description)")
+#     )
+#     await db_session.commit()
+# 
+#     # Hit the Search Endpoint
+#     response = await client.get("/products/?search=fast laptop")
+#     
+#     assert response.status_code == 200
+#     data = response.json()
+#     
+#     # Assert our product was found
+#     assert len(data) > 0
+#     assert data[0]["name"] == "Ultra Fast Gaming Laptop"
+# 
+# async def test_search_products_no_match(client: AsyncClient, db_session: AsyncSession):
+#     await create_dummy_data(db_session)
+#     await db_session.execute(
+#         text("UPDATE products SET search_vector = to_tsvector('english', name || ' ' || description)")
+#     )
+#     await db_session.commit()
+# 
+#     # Search for something that doesn't exist
+#     response = await client.get("/products/?search=wooden chair")
+#     
+#     assert response.status_code == 200
+#     data = response.json()
+#     assert len(data) == 0

@@ -12,6 +12,7 @@ from app.models.product import Product
 from app.models.cart import Cart
 from app.schemas.cart import CartItemCreate, CartItemResponse, CartItemUpdate
 from app.api.deps import get_current_user
+from app.core.config import settings
 
 from fastapi_limiter.depends import RateLimiter
 from pyrate_limiter import Rate, Duration, Limiter
@@ -95,7 +96,7 @@ async def get_user_cart(
 
     return PaginatedResponse(items=cart_items, next_cursor=next_cur)
 
-limiter_add_to_cart = RateLimiter(Rate(30, Duration.MINUTE))
+limiter_add_to_cart = Limiter(Rate(100000, Duration.MINUTE)) if settings.DEBUG else Limiter(Rate(30, Duration.MINUTE))
 
 
 @router.post(
@@ -148,10 +149,13 @@ async def add_to_cart(
         )
         db.add(cart_item)
     await db.commit()
-    await db.refresh(cart_item)
-
-    if not cart_item.product:
-        cart_item.product = product
+    
+    # Re-fetch with product and images eagerly loaded to prevent lazy-load 500 error
+    refreshed = await db.execute(
+        select(Cart).where(Cart.id == cart_item.id)
+        .options(selectinload(Cart.product).selectinload(Product.images))
+    )
+    cart_item = refreshed.scalars().first()
     return cart_item
 
 
@@ -169,9 +173,8 @@ async def update_cart_item(
     cart_result = await db.execute(
         select(Cart).where(
             Cart.id == item_id, Cart.customer_id == customer.id
-        ).options(selectinload(
-                Cart.product
-            ).options(Product.images)
+        ).options(
+            selectinload(Cart.product).selectinload(Product.images)
         )
     )
 
@@ -189,7 +192,12 @@ async def update_cart_item(
     check_stock(product, item_update.quantity)
     cart_item.quantity = item_update.quantity
     await db.commit()
-    await db.refresh(cart_item)
+    # Re-fetch with product+images eagerly loaded for response serialization
+    refreshed = await db.execute(
+        select(Cart).where(Cart.id == item_id)
+        .options(selectinload(Cart.product).selectinload(Product.images))
+    )
+    cart_item = refreshed.scalars().first()
     return cart_item
 
 
