@@ -66,7 +66,7 @@ def _random_phone() -> str:
 # ---------------------------------------------------------------------------
 
 _product_id_pool: list[int] = []
-_category_id_pool: list[int] = [1, 2, 3]   # seeded; extended during test
+_category_id_pool: list[int] = []   # populated dynamically from /categories/
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +106,9 @@ class PublicBrowsingTasks(TaskSet):
 
     @task(12)
     def get_product_detail(self):
-        pid = random.choice(_product_id_pool) if _product_id_pool else 1
+        if not _product_id_pool:
+            return
+        pid = random.choice(_product_id_pool)
         self.client.get(f"/products/{pid}", name="/products/[id]")
 
     @task(8)
@@ -441,7 +443,16 @@ class SellerJourneyTasks(TaskSet):
     def _create_product(self):
         if not self.token:
             return
-        cat_id = random.choice(_category_id_pool) if _category_id_pool else 1
+        if not _category_id_pool:
+            resp = self.client.get("/categories/", name="/categories/")
+            if resp.status_code == 200:
+                for cat in resp.json():
+                    cid = cat.get("id")
+                    if cid and cid not in _category_id_pool:
+                        _category_id_pool.append(cid)
+        if not _category_id_pool:
+            return
+        cat_id = random.choice(_category_id_pool)
         resp = self.client.post(
             "/products/",
             json={
@@ -579,7 +590,7 @@ class AdminJourneyTasks(TaskSet):
     """
 
     ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@example.com")
-    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "AdminPass@123")
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "Admin123!")
 
     def on_start(self):
         self.token: str | None = None
