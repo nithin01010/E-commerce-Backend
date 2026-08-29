@@ -15,6 +15,8 @@
 - [Environment Variables](#environment-variables)
 - [Getting Started (Docker)](#getting-started-docker)
 - [Running Tests](#running-tests)
+- [Load Testing (Locust)](#load-testing-locust)
+- [Health Check](#health-check)
 
 ---
 
@@ -44,28 +46,28 @@ These are the specific, real-world engineering problems this project solves:
 ## Tech Stack
 
 **Core**
-- 🐍 **Python 3.11+**
-- ⚡ **FastAPI** — Async web framework
-- 🗄️ **PostgreSQL** — Primary database (via `asyncpg`)
-- 🔥 **SQLAlchemy 2.0** — Async ORM
-- 📦 **Alembic** — Database migrations
-- ✅ **Pydantic v2** — Data validation & settings
+- **Python 3.11+**
+- **FastAPI** — Async web framework
+- **PostgreSQL** — Primary database (via `asyncpg`)
+- **SQLAlchemy 2.0** — Async ORM
+- **Alembic** — Database migrations
+- **Pydantic v2** — Data validation & settings
 
 **Infrastructure**
-- 🐳 **Docker & Docker Compose** — Containerised development & deployment
-- 🔴 **Redis** — Caching layer & Celery message broker
-- 🌿 **Celery** — Async background task queue
-- 🔀 **PgBouncer** — PostgreSQL connection pooling
-- ☁️ **Supabase** — Object storage (product images)
+- **Docker & Docker Compose** — Containerized development & deployment
+- **Redis** — Caching layer & Celery message broker
+- **Celery** — Async background task queue
+- **PgBouncer** — PostgreSQL connection pooling
+- **Supabase** — Object storage (product images)
 
 **Security**
-- 🔐 **JWT (Access + Refresh Tokens)** — Stateless authentication with token rotation
-- 🍪 **HttpOnly Cookies** — Secure token storage (prevents XSS)
-- 🚫 **Redis Token Blacklist** — Instant token revocation on logout
-- 🛡️ **FastAPI-Limiter** — Rate limiting on all sensitive endpoints
+- **JWT (Access + Refresh Tokens)** — Stateless authentication with token rotation
+- **HttpOnly Cookies** — Secure token storage (prevents XSS)
+- **Redis Token Blacklist** — Instant token revocation on logout
+- **FastAPI-Limiter** — Rate limiting on all sensitive endpoints
 
 **Testing**
-- 🧪 **Pytest** + **pytest-asyncio** — Async unit & integration tests
+- **Pytest** + **pytest-asyncio** — Async unit & integration tests
 
 ---
 
@@ -107,93 +109,93 @@ These are the specific, real-world engineering problems this project solves:
 
 ## API Endpoints
 
-### 🔑 Auth (`/auth`)
+### Auth (`/auth`)
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
 | `POST` | `/auth/register` | Register a new user | Public |
 | `POST` | `/auth/login` | Login (returns JWT + sets HttpOnly cookie) | Public |
-| `POST` | `/auth/logout` | Logout & blacklist tokens in Redis | 🔒 Required |
-| `POST` | `/auth/refresh` | Rotate access & refresh tokens | 🔒 Required |
+| `POST` | `/auth/logout` | Logout & blacklist tokens in Redis | Required |
+| `POST` | `/auth/refresh` | Rotate access & refresh tokens | Required |
 | `POST` | `/auth/forgot-password` | Send password reset link (rate limited: 3/hr) | Public |
 | `POST` | `/auth/reset-password` | Reset password with token | Public |
-| `GET`  | `/auth/role_id` | Get current user's role | 🔒 Required |
+| `GET`  | `/auth/role_id` | Get current user's role | Required |
 
-### 🛍️ Products (`/products`)
+### Products (`/products`)
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
 | `GET` | `/products/` | List all products (cached, cursor-paginated) | Public |
 | `GET` | `/products/{id}` | Get a single product | Public |
-| `POST` | `/products/` | Create a product | 🔒 Seller |
-| `PUT` | `/products/{id}` | Update a product | 🔒 Seller |
-| `DELETE` | `/products/{id}` | Delete a product | 🔒 Seller |
-| `POST` | `/products/{id}/images` | Upload product images (Supabase) | 🔒 Seller |
+| `POST` | `/products/` | Create a product | Seller |
+| `PUT` | `/products/{id}` | Update a product | Seller |
+| `DELETE` | `/products/{id}` | Delete a product | Seller |
+| `POST` | `/products/{id}/images` | Upload product images (Supabase) | Seller |
 
-### 🛒 Cart (`/cart`)
+### Cart (`/cart`)
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
-| `GET` | `/cart/` | View current cart | 🔒 Customer |
-| `POST` | `/cart/` | Add item to cart | 🔒 Customer |
-| `PUT` | `/cart/{id}` | Update item quantity | 🔒 Customer |
-| `DELETE` | `/cart/{id}` | Remove item from cart | 🔒 Customer |
+| `GET` | `/cart/` | View current cart | Customer |
+| `POST` | `/cart/` | Add item to cart | Customer |
+| `PUT` | `/cart/{id}` | Update item quantity | Customer |
+| `DELETE` | `/cart/{id}` | Remove item from cart | Customer |
 
-### 📦 Orders (`/orders`)
+### Orders (`/orders`)
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
-| `POST` | `/orders/checkout` | Checkout cart → create orders (row-locked) | 🔒 Customer |
-| `GET` | `/orders/` | List orders (scoped by role, cursor-paginated) | 🔒 Required |
-| `PUT` | `/orders/{id}/status` | Update order status | 🔒 Seller |
+| `POST` | `/orders/checkout` | Checkout cart → create orders (row-locked) | Customer |
+| `GET` | `/orders/` | List orders (scoped by role, cursor-paginated) | Required |
+| `PUT` | `/orders/{id}/status` | Update order status | Seller |
 
-### ⭐ Reviews (`/reviews`)
+### Reviews (`/reviews`)
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
-| `POST` | `/reviews/` | Submit a product review | 🔒 Customer |
+| `POST` | `/reviews/` | Submit a product review | Customer |
 | `GET` | `/reviews/{product_id}` | Get reviews for a product | Public |
-| `DELETE` | `/reviews/{id}` | Delete a review | 🔒 Customer/Admin |
+| `DELETE` | `/reviews/{id}` | Delete a review | Customer/Admin |
 
-### 🔄 Returns (`/returns`)
+### Returns (`/returns`)
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
-| `POST` | `/returns/` | Request a return | 🔒 Customer |
-| `GET` | `/returns/` | List return requests (scoped by role) | 🔒 Required |
-| `PUT` | `/returns/{id}/status` | Approve/reject a return | 🔒 Seller/Admin |
+| `POST` | `/returns/` | Request a return | Customer |
+| `GET` | `/returns/` | List return requests (scoped by role) | Required |
+| `PUT` | `/returns/{id}/status` | Approve/reject a return | Seller/Admin |
 
-### 🎧 Support (`/support`)
+### Support (`/support`)
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
-| `POST` | `/support/` | Create a support ticket | 🔒 Required |
-| `GET` | `/support/` | List tickets | 🔒 Required |
-| `POST` | `/support/{id}/reply` | Reply to a ticket | 🔒 Required |
+| `POST` | `/support/` | Create a support ticket | Required |
+| `GET` | `/support/` | List tickets | Required |
+| `POST` | `/support/{id}/reply` | Reply to a ticket | Required |
 
-### 🏠 Addresses (`/addresses`)
+### Addresses (`/addresses`)
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
-| `POST` | `/addresses/` | Add a new address | 🔒 Customer |
-| `GET` | `/addresses/` | List saved addresses | 🔒 Customer |
-| `DELETE` | `/addresses/{id}` | Delete an address | 🔒 Customer |
+| `POST` | `/addresses/` | Add a new address | Customer |
+| `GET` | `/addresses/` | List saved addresses | Customer |
+| `DELETE` | `/addresses/{id}` | Delete an address | Customer |
 
-### 📂 Categories (`/categories`)
+### Categories (`/categories`)
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
 | `GET` | `/categories/` | List all categories | Public |
-| `POST` | `/categories/` | Create a category | 🔒 Admin |
+| `POST` | `/categories/` | Create a category | Admin |
 
-### 👤 Profiles
+### Profiles
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
-| `GET` | `/customer/me` | Get customer profile | 🔒 Customer |
-| `PUT` | `/customer/me` | Update customer profile | 🔒 Customer |
-| `GET` | `/seller/me` | Get seller profile | 🔒 Seller |
-| `PUT` | `/seller/me` | Update seller profile | 🔒 Seller |
+| `GET` | `/customer/me` | Get customer profile | Customer |
+| `PUT` | `/customer/me` | Update customer profile | Customer |
+| `GET` | `/seller/me` | Get seller profile | Seller |
+| `PUT` | `/seller/me` | Update seller profile | Seller |
 
-### ⚙️ Admin (`/admin`)
+### Admin (`/admin`)
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
-| `GET` | `/admin/customers` | List all customers | 🔒 Admin |
-| `GET` | `/admin/sellers` | List all sellers | 🔒 Admin |
-| `GET` | `/admin/products` | List all products | 🔒 Admin |
-| `GET` | `/admin/orders` | List all orders | 🔒 Admin |
-| `GET` | `/admin/support` | View all support tickets | 🔒 Admin |
-| `POST` | `/admin/support/{id}/reply` | Reply to any support ticket | 🔒 Admin |
+| `GET` | `/admin/customers` | List all customers | Admin |
+| `GET` | `/admin/sellers` | List all sellers | Admin |
+| `GET` | `/admin/products` | List all products | Admin |
+| `GET` | `/admin/orders` | List all orders | Admin |
+| `GET` | `/admin/support` | View all support tickets | Admin |
+| `POST` | `/admin/support/{id}/reply` | Reply to any support ticket | Admin |
 
 ---
 
@@ -316,10 +318,10 @@ docker compose up --build
 ```
 
 This will start:
-- 🌐 **FastAPI** app on `http://localhost:8000`
-- 🗄️ **PostgreSQL** on `localhost:5433`
-- 🔴 **Redis** on `localhost:6380`
-- 🌿 **Celery Worker** for background tasks
+- **FastAPI** app on `http://localhost:8000`
+- **PostgreSQL** on `localhost:5433`
+- **Redis** on `localhost:6380`
+- **Celery Worker** for background tasks
 
 Database migrations (`alembic upgrade head`) and initial data seeding run **automatically** on startup.
 
@@ -379,7 +381,6 @@ locust -f locust/locustfile.py --host=http://localhost:8002 --headless -u 100 -r
 ```
 
 ---
-
 
 ## Health Check
 

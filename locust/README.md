@@ -1,4 +1,4 @@
-# 🦗 Locust Load Tests — E-Commerce Backend
+# Locust Load Tests — E-Commerce Backend
 
 This directory contains the [Locust](https://locust.io/) load testing configuration for the E-Commerce FastAPI backend.
 
@@ -55,7 +55,7 @@ locust -f locust/locustfile.py \
 
 ## Routes Covered
 
-### 🔑 Auth (`/auth`)
+### Auth (`/auth`)
 | Route | Covered By |
 |---|---|
 | `POST /auth/register` | CustomerUser, SellerUser |
@@ -64,7 +64,7 @@ locust -f locust/locustfile.py \
 | `POST /auth/refresh` | CustomerUser |
 | `GET  /auth/role_id` | CustomerUser |
 
-### 🛍️ Products (`/products`)
+### Products (`/products`)
 | Route | Covered By |
 |---|---|
 | `GET  /products/` | PublicUser, CustomerUser |
@@ -75,50 +75,50 @@ locust -f locust/locustfile.py \
 | `PUT  /products/[id]` | SellerUser |
 | `PATCH /products/[id]` | SellerUser |
 
-### 📂 Categories (`/categories`)
+### Categories (`/categories`)
 | Route | Covered By |
 |---|---|
 | `GET /categories/` | PublicUser, SellerUser |
 
-### 🛒 Cart (`/cart`)
+### Cart (`/cart`)
 | Route | Covered By |
 |---|---|
 | `GET  /cart/` | CustomerUser |
 | `POST /cart/` | CustomerUser |
 | `PUT  /cart/[id]` | CustomerUser |
 
-### 📦 Orders (`/orders`)
+### Orders (`/orders`)
 | Route | Covered By |
 |---|---|
 | `POST /orders/checkout` | CustomerUser |
 | `GET  /orders/` | CustomerUser, SellerUser |
 
-### ⭐ Reviews (`/reviews`)
+### Reviews (`/reviews`)
 | Route | Covered By |
 |---|---|
 | `POST /reviews/` | CustomerUser |
 | `GET  /reviews/product/[id]` | PublicUser |
 | `GET  /reviews/seller/[id]` | SellerUser |
 
-### 🔄 Returns (`/returns`)
+### Returns (`/returns`)
 | Route | Covered By |
 |---|---|
 | `POST /returns/` | CustomerUser |
 | `GET  /returns/` | CustomerUser, SellerUser, AdminUser |
 
-### 🎧 Support (`/support`)
+### Support (`/support`)
 | Route | Covered By |
 |---|---|
 | `POST /support/` | CustomerUser |
 | `GET  /support/` | CustomerUser |
 
-### 🏠 Addresses (`/addresses`)
+### Addresses (`/addresses`)
 | Route | Covered By |
 |---|---|
 | `POST /addresses/` | CustomerUser, SellerUser |
 | `GET  /addresses/` | CustomerUser |
 
-### 👤 Profiles
+### Profiles
 | Route | Covered By |
 |---|---|
 | `POST /customer/onboarding` | CustomerUser |
@@ -126,7 +126,7 @@ locust -f locust/locustfile.py \
 | `POST /seller/onboarding` | SellerUser |
 | `GET  /seller/me` | SellerUser |
 
-### ⚙️ Admin (`/admin`)
+### Admin (`/admin`)
 | Route | Covered By |
 |---|---|
 | `GET /admin/customers` | AdminUser |
@@ -135,7 +135,7 @@ locust -f locust/locustfile.py \
 | `GET /admin/orders` | AdminUser |
 | `GET /admin/support` | AdminUser |
 
-### ❤️ Health
+### Health
 | Route | Covered By |
 |---|---|
 | `GET /health` | PublicUser |
